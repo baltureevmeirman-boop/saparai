@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sapar AI — бюджетіңе сай маршрут</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap&subset=cyrillic,cyrillic-ext" rel="stylesheet">
+<style>
+:root{
+  --sea:#0B4F5C; --sea-dark:#06323B; --foam:#EAF3F2; --paper:#FBFDFC;
+  --saffron:#F2A900; --ink:#12262B; --muted:#5A7177; --line:#CFE0DE; --danger:#B3261E;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html{font-family:Rubik,system-ui,sans-serif;color:var(--ink);background:var(--foam)}
+body{margin:0;min-height:100vh}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header.hero{background:var(--sea-dark);color:#fff;padding:56px 0 120px}
+.brand{font-weight:800;font-size:1.1rem;letter-spacing:.02em;display:flex;align-items:center;gap:10px}
+.brand i{width:14px;height:14px;background:var(--saffron);border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:inline-block}
+h1{font-size:clamp(2rem,5.5vw,3.6rem);line-height:1.08;font-weight:800;margin:36px 0 14px;max-width:16ch}
+.hero p{max-width:46ch;color:#BFD7D6;font-size:1.05rem;line-height:1.55;margin:0}
+main{margin-top:-80px;padding-bottom:64px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:0 12px 30px rgba(6,50,59,.12)}
+form{display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:16px}
+.full{grid-column:1/-1}
+label{display:block;font-weight:500;font-size:.9rem;margin-bottom:6px}
+input{width:100%;font:inherit;padding:12px 14px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input:focus-visible,button:focus-visible{outline:3px solid var(--saffron);outline-offset:1px}
+button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:14px 22px;background:var(--saffron);color:#2A1D00;cursor:pointer}
+button:hover{filter:brightness(.95)}
+button:disabled{opacity:.6;cursor:wait}
+.err{color:var(--danger);margin-top:14px;font-weight:500}
+#result{margin-top:32px}
+.meter{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:24px}
+.meter .row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:500}
+.bar{height:12px;background:var(--foam);border-radius:99px;margin:12px 0;overflow:hidden}
+.bar b{display:block;height:100%;background:var(--sea);border-radius:99px;width:0;transition:width .6s}
+.bar b.over{background:var(--danger)}
+.summary{color:var(--muted);line-height:1.55;margin:0}
+.day{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin-bottom:18px}
+.day h2{margin:0 0 14px;font-size:1.25rem}
+.item{display:grid;grid-template-columns:64px 1fr auto;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.time{font-weight:700;color:var(--sea)}
+.item h3{margin:0 0 4px;font-size:1rem}
+.item p{margin:0;color:var(--muted);line-height:1.5;font-size:.95rem}
+.cost{font-weight:700;white-space:nowrap}
+.cost.free{color:var(--sea)}
+.tips{background:var(--sea);color:#fff;border-radius:var(--r);padding:20px 24px}
+.tips h2{margin:0 0 10px;font-size:1.1rem}
+.tips li{margin:6px 0;line-height:1.5}
+.skel{height:90px;border-radius:var(--r);background:linear-gradient(90deg,#dbe8e6 25%,#eef5f4 50%,#dbe8e6 75%);background-size:200% 100%;animation:sk 1.2s infinite;margin-bottom:14px}
+@keyframes sk{to{background-position:-200% 0}}
+@media(max-width:720px){form{grid-template-columns:1fr}.item{grid-template-columns:52px 1fr}.cost{grid-column:2}}
+@media(prefers-reduced-motion:reduce){.skel{animation:none}.bar b{transition:none}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><i></i> Sapar AI</div>
+    <h1>Бюджетіңе сай маршрут</h1>
+    <p>Қаланы таңдаңыз, қанша ақша жұмсай аласыз — соны жазыңыз. Жасанды интеллект әр күнге нақты жоспар құрып береді.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel">
+    <form id="f">
+      <div>
+        <label for="city">Қала</label>
+        <input id="city" list="cities" placeholder="Мысалы: Түркістан" required>
+        <datalist id="cities">
+          <option>Астана</option><option>Алматы</option><option>Шымкент</option><option>Ақтау</option>
+          <option>Түркістан</option><option>Қарағанды</option><option>Ақтөбе</option><option>Атырау</option>
+          <option>Көкшетау</option><option>Өскемен</option><option>Стамбул</option><option>Ташкент</option>
+        </datalist>
+      </div>
+      <div>
+        <label for="budget">Бюджет, ₸</label>
+        <input id="budget" type="number" min="1000" step="1000" placeholder="50000" required>
+      </div>
+      <div>
+        <label for="days">Күн саны</label>
+        <input id="days" type="number" min="1" max="14" value="2" required>
+      </div>
+      <div class="full">
+        <label for="interests">Не қызықтырады? (міндетті емес)</label>
+        <input id="interests" placeholder="тарих, табиғат, ұлттық тағам…">
+      </div>
+      <div class="full"><button id="go" type="submit">Маршрут жасау</button></div>
+    </form>
+    <div class="err" id="err" role="alert"></div>
+  </section>
+
+  <section id="result" aria-live="polite"></section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₸';
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function render(data, budget){
+  const box = $('result'); box.replaceChildren();
+  const total = data.totalCost ?? data.days.flatMap(d => d.items).reduce((s,i)=>s+(+i.cost||0),0);
+  const pct = Math.min(100, total / budget * 100);
+
+  const m = el('div','meter');
+  const row = el('div','row');
+  row.append(el('span','', 'Болжамды шығын: ' + fmt(total)), el('span','', 'Бюджет: ' + fmt(budget)));
+  const bar = el('div','bar'); const fill = document.createElement('b');
+  if (total > budget) fill.className = 'over';
+  bar.append(fill);
+  m.append(row, bar, el('p','summary', data.summary || ''));
+  box.append(m);
+  requestAnimationFrame(()=> fill.style.width = pct + '%');
+
+  data.days.forEach(d => {
+    const day = el('div','day');
+    day.append(el('h2','', `${d.day}-күн. ${d.title}`));
+    d.items.forEach(i => {
+      const it = el('div','item');
+      const mid = el('div');
+      mid.append(el('h3','', i.place), el('p','', i.description));
+      const c = +i.cost || 0;
+      it.append(el('div','time', i.time), mid, el('div','cost' + (c ? '' : ' free'), c ? fmt(c) : 'Тегін'));
+      day.append(it);
+    });
+    box.append(day);
+  });
+
+  if (data.tips?.length){
+    const t = el('div','tips'); t.append(el('h2','','Үнемдеу кеңестері'));
+    const ul = document.createElement('ul');
+    data.tips.forEach(x => ul.append(el('li','',x)));
+    t.append(ul); box.append(t);
+  }
+  box.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+$('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('err').textContent = '';
+  const budget = +$('budget').value;
+  const btn = $('go'); btn.disabled = true; btn.textContent = 'Маршрут жасалуда…';
+  $('result').replaceChildren(el('div','skel'), el('div','skel'), el('div','skel'));
+  try{
+    const res = await fetch('/api/itinerary', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ city:$('city').value, budget, days:+$('days').value, interests:$('interests').value })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Қате орын алды.');
+    render(data, budget);
+  }catch(ex){
+    $('result').replaceChildren();
+    $('err').textContent = ex.message;
+  }finally{
+    btn.disabled = false; btn.textContent = 'Маршрут жасау';
+  }
+});
+</script>
+</body>
+</html>
