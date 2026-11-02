@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
@@ -30,8 +32,12 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 var cache = new ConcurrentDictionary<string, string>();
+string lastError = "Әлі сұраныс болған жоқ";
+
+static string Cut(string s) => s.Length > 300 ? s[..300] : s;
 
 app.MapGet("/health", () => Results.Ok("ok"));
+app.MapGet("/lasterr", () => Results.Text(lastError));
 
 app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory factory, IConfiguration cfg) =>
 {
@@ -52,8 +58,8 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
     if (cache.TryGetValue(cacheKey, out var cached))
         return Results.Content(cached, "application/json");
 
-    var primary = cfg["Gemini:Model"] ?? "gemini-flash-lite-latest";
-    var models = new[] { primary, "gemini-flash-latest" }.Distinct().ToArray();
+    var model = cfg["Gemini:Model"] ?? "gemini-flash-lite-latest";
+    var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
 
     var prompt = $$"""
         Сен саяхат жоспарлаушысың. Қысқа әрі нақты маршрут жаса.
@@ -95,45 +101,63 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
         {
             responseMimeType = "application/json",
             temperature = 0.6,
-            maxOutputTokens = 6000
+            maxOutputTokens = 16000
         }
     };
 
     var http = factory.CreateClient("gemini");
 
-    for (int attempt = 0; attempt < 4; attempt++)
+    for (int attempt = 1; attempt <= 3; attempt++)
     {
-        var model = models[attempt % models.Length];
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
+        var sw = Stopwatch.StartNew();
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var msg = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(body) };
             msg.Headers.Add("x-goog-api-key", apiKey);
 
             using var res = await http.SendAsync(msg, cts.Token);
+            var raw = await res.Content.ReadAsStringAsync();
+
             if (!res.IsSuccessStatusCode)
             {
+                lastError = $"{attempt}-әрекет: HTTP {(int)res.StatusCode} {Cut(raw)}";
                 await Task.Delay(1000);
                 continue;
             }
 
-            var raw = await res.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(raw);
-            var text = doc.RootElement.GetProperty("candidates")[0]
-                          .GetProperty("content").GetProperty("parts")[0]
-                          .GetProperty("text").GetString() ?? "";
+            var cand = doc.RootElement.GetProperty("candidates")[0];
+            var finish = cand.TryGetProperty("finishReason", out var fr) ? fr.GetString() : "";
 
-            text = text.Trim().Trim('`');
+            var sbT = new StringBuilder();
+            foreach (var part in cand.GetProperty("content").GetProperty("parts").EnumerateArray())
+            {
+                if (part.TryGetProperty("thought", out var th) && th.ValueKind == JsonValueKind.True) continue;
+                if (part.TryGetProperty("text", out var t)) sbT.Append(t.GetString());
+            }
+
+            var text = sbT.ToString().Trim().Trim('`');
             if (text.StartsWith("json", StringComparison.OrdinalIgnoreCase)) text = text[4..];
 
-            JsonDocument.Parse(text);
+            try
+            {
+                JsonDocument.Parse(text);
+            }
+            catch
+            {
+                var tail = text.Length > 80 ? text[^80..] : text;
+                lastError = $"{attempt}-әрекет: JSON дұрыс емес, finish={finish}, {sw.ElapsedMilliseconds}мс, ұзындығы={text.Length}, соңы: {tail}";
+                continue;
+            }
+
             cache[cacheKey] = text;
+            lastError = $"Соңғы сұраныс сәтті ({sw.ElapsedMilliseconds}мс)";
             return Results.Content(text, "application/json");
         }
-        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException
-                                   or TaskCanceledException or OperationCanceledException or HttpRequestException)
+        catch (Exception ex)
         {
+            lastError = $"{attempt}-әрекет: {ex.GetType().Name}: {ex.Message} ({sw.ElapsedMilliseconds}мс)";
             await Task.Delay(800);
         }
     }
@@ -141,30 +165,7 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
     // AI жауап бермесе: қате көрсетпейміз, дайын үлгі жоспар береміз
     return Results.Json(Demo.Build(req.City, req.Budget, req.Days));
 }).RequireRateLimiting("ai");
-app.MapGet("/diag", async (IHttpClientFactory factory, IConfiguration cfg) =>
-{
-    var key = cfg["Gemini:ApiKey"];
-    if (string.IsNullOrWhiteSpace(key)) return Results.Text("Кілт жоқ: Gemini__ApiKey бапталмаған");
-    var http = factory.CreateClient("gemini");
-    var sb = new System.Text.StringBuilder();
-    foreach (var m in new[] { "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash" })
-    {
-        try
-        {
-            using var msg = new HttpRequestMessage(HttpMethod.Post,
-                $"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent")
-            {
-                Content = JsonContent.Create(new { contents = new[] { new { parts = new[] { new { text = "Сәлем деп жаз" } } } } })
-            };
-            msg.Headers.Add("x-goog-api-key", key);
-            using var res = await http.SendAsync(msg);
-            var b = await res.Content.ReadAsStringAsync();
-            sb.AppendLine($"{m}: {(int)res.StatusCode} {(b.Length > 250 ? b[..250] : b)}");
-        }
-        catch (Exception ex) { sb.AppendLine($"{m}: қате {ex.Message}"); }
-    }
-    return Results.Text(sb.ToString());
-});
+
 app.Run();
 
 record ItineraryRequest(string City, decimal Budget, int Days, string? Interests);
