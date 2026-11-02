@@ -58,9 +58,7 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
     if (cache.TryGetValue(cacheKey, out var cached))
         return Results.Content(cached, "application/json");
 
-    var model = cfg["Gemini:Model"] ?? "gemini-flash-lite-latest";
-    var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
-
+    var models = new[] { cfg["Gemini:Model"] ?? "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.8-flash" }.Distinct().ToArray();
     var prompt = $$"""
         Сен саяхат жоспарлаушысың. Қысқа әрі нақты маршрут жаса.
 
@@ -107,9 +105,10 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
 
     var http = factory.CreateClient("gemini");
 
-    for (int attempt = 1; attempt <= 3; attempt++)
-    {
-        var sw = Stopwatch.StartNew();
+    for (int attempt = 1; attempt <= 6; attempt++)
+{
+    var sw = Stopwatch.StartNew();
+    var url = $"https://generativelanguage.googleapis.com/v1beta/models/{models[(attempt - 1) % models.Length]}:generateContent";
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
