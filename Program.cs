@@ -141,7 +141,30 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
     // AI жауап бермесе: қате көрсетпейміз, дайын үлгі жоспар береміз
     return Results.Json(Demo.Build(req.City, req.Budget, req.Days));
 }).RequireRateLimiting("ai");
-
+app.MapGet("/diag", async (IHttpClientFactory factory, IConfiguration cfg) =>
+{
+    var key = cfg["Gemini:ApiKey"];
+    if (string.IsNullOrWhiteSpace(key)) return Results.Text("Кілт жоқ: Gemini__ApiKey бапталмаған");
+    var http = factory.CreateClient("gemini");
+    var sb = new System.Text.StringBuilder();
+    foreach (var m in new[] { "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash" })
+    {
+        try
+        {
+            using var msg = new HttpRequestMessage(HttpMethod.Post,
+                $"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent")
+            {
+                Content = JsonContent.Create(new { contents = new[] { new { parts = new[] { new { text = "Сәлем деп жаз" } } } } })
+            };
+            msg.Headers.Add("x-goog-api-key", key);
+            using var res = await http.SendAsync(msg);
+            var b = await res.Content.ReadAsStringAsync();
+            sb.AppendLine($"{m}: {(int)res.StatusCode} {(b.Length > 250 ? b[..250] : b)}");
+        }
+        catch (Exception ex) { sb.AppendLine($"{m}: қате {ex.Message}"); }
+    }
+    return Results.Text(sb.ToString());
+});
 app.Run();
 
 record ItineraryRequest(string City, decimal Budget, int Days, string? Interests);
