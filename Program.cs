@@ -105,7 +105,7 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
 
     var http = factory.CreateClient("gemini");
 
-    for (int attempt = 1; attempt <= 6; attempt++)
+    for (int attempt = 1; attempt <= 2; attempt++)
 {
     var sw = Stopwatch.StartNew();
     var url = $"https://generativelanguage.googleapis.com/v1beta/models/{models[(attempt - 1) % models.Length]}:generateContent";
@@ -160,7 +160,48 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
             await Task.Delay(800);
         }
     }
-
+var groqKey = cfg["Groq:ApiKey"];
+    if (!string.IsNullOrWhiteSpace(groqKey))
+    {
+        var groqModels = new[] { cfg["Groq:Model"] ?? "llama-3.3-70b-versatile", "llama-3.1-8b-instant" };
+        foreach (var gm in groqModels)
+        {
+            try
+            {
+                using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+                using var gmsg = new HttpRequestMessage(HttpMethod.Post, "https://api.groq.com/openai/v1/chat/completions")
+                {
+                    Content = JsonContent.Create(new
+                    {
+                        model = gm,
+                        messages = new[] { new { role = "user", content = prompt } },
+                        temperature = 0.6,
+                        max_tokens = 6000,
+                        response_format = new { type = "json_object" }
+                    })
+                };
+                gmsg.Headers.Add("Authorization", "Bearer " + groqKey);
+                using var gres = await http.SendAsync(gmsg, cts2.Token);
+                var graw = await gres.Content.ReadAsStringAsync();
+                if (!gres.IsSuccessStatusCode)
+                {
+                    lastError = $"Groq {gm}: HTTP {(int)gres.StatusCode} {Cut(graw)}";
+                    continue;
+                }
+                using var gdoc = JsonDocument.Parse(graw);
+                var gtext = gdoc.RootElement.GetProperty("choices")[0]
+                                .GetProperty("message").GetProperty("content").GetString() ?? "";
+                JsonDocument.Parse(gtext);
+                cache[cacheKey] = gtext;
+                lastError = $"Groq {gm} сәтті";
+                return Results.Content(gtext, "application/json");
+            }
+            catch (Exception ex)
+            {
+                lastError = $"Groq {gm}: {ex.GetType().Name}: {ex.Message}";
+            }
+        }
+    }
     // AI жауап бермесе: қате көрсетпейміз, дайын үлгі жоспар береміз
     return Results.Json(Demo.Build(req.City, req.Budget, req.Days));
 }).RequireRateLimiting("ai");
