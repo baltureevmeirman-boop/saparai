@@ -163,7 +163,7 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
 var groqKey = cfg["Groq:ApiKey"];
     if (!string.IsNullOrWhiteSpace(groqKey))
     {
-        var groqModels = new[] { cfg["Groq:Model"] ?? "llama-3.3-70b-versatile", "llama-3.1-8b-instant" };
+       var groqModels = new[] { cfg["Groq:Model"] ?? "openai/gpt-oss-120b", "openai/gpt-oss-20b" };
         foreach (var gm in groqModels)
         {
             try
@@ -176,7 +176,8 @@ var groqKey = cfg["Groq:ApiKey"];
                         model = gm,
                         messages = new[] { new { role = "user", content = prompt } },
                         temperature = 0.6,
-                        max_tokens = 6000,
+                        max_tokens = 8000,
+                        reasoning_effort = "low",
                         response_format = new { type = "json_object" }
                     })
                 };
