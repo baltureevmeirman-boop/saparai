@@ -54,7 +54,8 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
 
     var interests = string.IsNullOrWhiteSpace(req.Interests) ? "ерекше талап жоқ" : req.Interests.Trim();
 
-    var cacheKey = $"{req.City.Trim().ToLowerInvariant()}|{req.Budget:0}|{req.Days}|{interests.ToLowerInvariant()}";
+    var langName = req.Lang switch { "ru" => "орыс тілінде (на русском языке)", "en" => "ағылшын тілінде (in English)", _ => "қазақ тілінде" };
+var cacheKey = $"{req.City.Trim().ToLowerInvariant()}|{req.Budget:0}|{req.Days}|{interests.ToLowerInvariant()}|{req.Lang}";
     if (cache.TryGetValue(cacheKey, out var cached))
         return Results.Content(cached, "application/json");
 
@@ -75,7 +76,7 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
         - totalCost өрісіне барлық cost мәндерінің қосындысын жаз.
         - Күннің title өрісіне мағыналы қысқа атау жаз (мысалы "Қала орталығы мен ескерткіштер"). "1-күн" немесе "1-ші күн" деп жазба.
         - Сипаттама: тек 1 қысқа сөйлем. Кеңестер: ең көбі 3 қысқа сөйлем.
-        - Барлық мәтін қазақ тілінде.
+        - Барлық мәтінді {{langName}} жаз.
         - Жауапты ТЕК мына JSON пішімінде қайтар:
         {
           "summary": "1 сөйлемдік шолу",
@@ -210,7 +211,7 @@ var groqKey = cfg["Groq:ApiKey"];
 
 app.Run();
 
-record ItineraryRequest(string City, decimal Budget, int Days, string? Interests);
+record ItineraryRequest(string City, decimal Budget, int Days, string? Interests, string? Lang);
 
 static class Demo
 {
