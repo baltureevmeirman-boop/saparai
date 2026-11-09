@@ -43,7 +43,7 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
 {
     if (string.IsNullOrWhiteSpace(req.City))
         return Results.BadRequest(new { error = "Қаланы енгізіңіз." });
-    if (req.Budget < 1000)
+    if (req.Budget < (req.Currency is "USD" or "EUR" ? 10 : 1000))
         return Results.BadRequest(new { error = "Бюджет кемінде 1 000 ₸ болуы керек." });
     if (req.Days is < 1 or > 14)
         return Results.BadRequest(new { error = "Күн саны 1 мен 14 аралығында болуы керек." });
@@ -55,7 +55,8 @@ app.MapPost("/api/itinerary", async (ItineraryRequest req, IHttpClientFactory fa
     var interests = string.IsNullOrWhiteSpace(req.Interests) ? "ерекше талап жоқ" : req.Interests.Trim();
 
     var langName = req.Lang switch { "ru" => "орыс тілінде (на русском языке)", "en" => "ағылшын тілінде (in English)", _ => "қазақ тілінде" };
-var cacheKey = $"{req.City.Trim().ToLowerInvariant()}|{req.Budget:0}|{req.Days}|{interests.ToLowerInvariant()}|{req.Lang}";
+var curName = req.Currency switch { "USD" => "АҚШ доллары (USD, $)", "EUR" => "еуро (EUR, €)", _ => "теңге (₸)" };
+var cacheKey = $"{req.City.Trim().ToLowerInvariant()}|{req.Budget:0}|{req.Days}|{interests.ToLowerInvariant()}|{req.Lang}|{req.Currency}";
     if (cache.TryGetValue(cacheKey, out var cached))
         return Results.Content(cached, "application/json");
 
@@ -64,14 +65,14 @@ var cacheKey = $"{req.City.Trim().ToLowerInvariant()}|{req.Budget:0}|{req.Days}|
         Сен саяхат жоспарлаушысың. Қысқа әрі нақты маршрут жаса.
 
         Қала: {{req.City.Trim()}}
-        Жалпы бюджет: {{req.Budget:0}} теңге (₸), бір адамға, тамақ, көлік және билеттерді қоса
+        Жалпы бюджет: {{req.Budget:0}} {{curName}}, бір адамға, тамақ, көлік және билеттерді қоса
         Күн саны: {{req.Days}}
         Қызығушылықтар: {{interests}}
 
         Ережелер:
         - Тек шынымен бар, нақты атаулы орындарды ұсын: нақты музей, мейрамхана, кафе, парк, қонақүй атаулары. "Кафе", "Ресторан", "Қонақүй" сияқты жалпы сөздерді жалғыз жазба.
         - Әр күнге 4-5 нүкте қой. Күндізгі және кешкі жоспарды қамт: таңғы ас, көрікті жерлер, түскі ас, кешкі ас.
-        - Бағалар теңгемен, бір адамға, нақты сан болсын. Тегін орындарға 0 жаз.
+        - Бағалар {{curName}} бірлігінде, бір адамға, нақты сан болсын. Тегін орындарға 0 жаз.
         - Жалпы шығын бюджеттің 70-90 пайызын құрасын, бірақ бюджеттен аспасын. Бюджет үлкен болса, қымбатырақ әрі сапалырақ орындарды таңда.
         - totalCost өрісіне барлық cost мәндерінің қосындысын жаз.
         - Күннің title өрісіне мағыналы қысқа атау жаз (мысалы "Қала орталығы мен ескерткіштер"). "1-күн" немесе "1-ші күн" деп жазба.
@@ -211,7 +212,7 @@ var groqKey = cfg["Groq:ApiKey"];
 
 app.Run();
 
-record ItineraryRequest(string City, decimal Budget, int Days, string? Interests, string? Lang);
+record ItineraryRequest(string City, decimal Budget, int Days, string? Interests, string? Lang, string? Currency);
 
 static class Demo
 {
