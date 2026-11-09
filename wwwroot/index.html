@@ -30,8 +30,11 @@ main{margin-top:-80px;padding-bottom:40px;position:relative}
 form{display:grid;grid-template-columns:5fr 4fr 3fr;gap:16px}
 .full{grid-column:1/-1}
 label{display:block;font-weight:500;font-size:.9rem;margin-bottom:6px}
-input{width:100%;font:inherit;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
-input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+input,select{width:100%;font:inherit;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.brow{display:flex;gap:8px}
+.brow input{flex:1;min-width:0}
+.brow select{flex:0 0 auto;width:auto;padding:12px 10px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .chip{border:1px solid var(--line);background:#f4faf9;color:var(--ink);font:inherit;font-size:.85rem;padding:6px 12px;border-radius:99px;cursor:pointer}
 .chip:hover{border-color:var(--gold);background:#fff8e6}
@@ -99,7 +102,14 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(-
       </div>
       <div>
         <label for="budget" data-i="budget"></label>
-        <input id="budget" type="number" inputmode="numeric" min="1000" step="1000" value="200000">
+        <div class="brow">
+          <input id="budget" type="number" inputmode="numeric" min="1" step="any" value="200000">
+          <select id="cur" aria-label="Currency">
+            <option value="KZT">₸ KZT</option>
+            <option value="USD">$ USD</option>
+            <option value="EUR">€ EUR</option>
+          </select>
+        </div>
         <div class="chips" id="budgetChips"></div>
       </div>
       <div>
@@ -127,7 +137,7 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(-
 const $ = id => document.getElementById(id);
 function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 
-// [қазақша, русский, English, танымал белгісі]
+// [қазақша, русский, English]. Алғашқы 12 қала — Қазақстанда.
 const CITIES = [
   ["Астана","Астана","Astana",1],["Алматы","Алматы","Almaty",1],["Шымкент","Шымкент","Shymkent"],
   ["Ақтау","Актау","Aktau",1],["Түркістан","Туркестан","Turkistan",1],["Қарағанды","Караганда","Karaganda"],
@@ -146,20 +156,29 @@ const CITIES = [
   ["Бали","Бали","Bali"],["Пекин","Пекин","Beijing"],["Нью-Дели","Нью-Дели","New Delhi"],
   ["Нью-Йорк","Нью-Йорк","New York"]
 ];
+const KZ_COUNT = 12;
+const KZ = new Set(), KNOWN = new Set();
+CITIES.forEach((c, i) => c.slice(0, 3).forEach(n => { KNOWN.add(n.toLowerCase()); if (i < KZ_COUNT) KZ.add(n.toLowerCase()); }));
+
+const CUR = {
+  KZT:{ sym:"₸", min:1000, def:200000, chips:[50000,100000,200000,500000,1000000] },
+  USD:{ sym:"$", min:10,   def:1000,   chips:[200,500,1000,2000,5000] },
+  EUR:{ sym:"€", min:10,   def:1000,   chips:[200,500,1000,2000,5000] }
+};
 
 const L = {
   kk:{
     h1:"Бюджетіңе сай маршрут",
     sub:"Қаланы таңдаңыз, бюджетті жазыңыз — жасанды интеллект әр күнге нақты жоспар құрып береді.",
     city:"Қала (әлемнің кез келген қаласы)", cityPh:"Мысалы: Стамбул",
-    budget:"Бюджет, ₸ (бір адамға)", days:"Күн саны",
+    budget:"Бюджет (бір адамға)", days:"Күн саны",
     interests:"Не қызықтырады? (міндетті емес)", interestsPh:"тарих, табиғат, ұлттық тағам…",
     go:"Маршрут жасау", loading:"Жасалуда… 10–30 секунд",
     est:"Болжамды шығын", bud:"Бюджет", free:"Тегін", tips:"Үнемдеу кеңестері",
     print:"Басып шығару / PDF", map:"Картада",
     dayN:n=>n+"-күн",
     chips:["тарих","табиғат","ұлттық тағам","шопинг","отбасымен"],
-    eCity:"Қаланы енгізіңіз.", eBudget:"Бюджет кемінде 1 000 ₸ болуы керек.", eDays:"Күн саны 1 мен 14 аралығында болуы керек.",
+    eCity:"Қаланы енгізіңіз.", eBudget:m=>"Бюджет кемінде "+m+" болуы керек.", eDays:"Күн саны 1 мен 14 аралығында болуы керек.",
     eServer:"Маршрут жасалмады. Біраз күтіп, қайта көріңіз.", eBusy:"Сұраныс тым көп. Біраз күтіп, қайта көріңіз.",
     eTime:"Жауап ұзақ күтілді. Қайта көріңіз.", eNet:"Серверге қосыла алмады. Интернетті тексеріп, қайта көріңіз.",
     foot:"Sapar AI — оқу жобасы. Бағалар мен орындар болжамды, сапар алдында тексеріңіз."
@@ -168,14 +187,14 @@ const L = {
     h1:"Маршрут по вашему бюджету",
     sub:"Выберите город и укажите бюджет — искусственный интеллект составит подробный план на каждый день.",
     city:"Город (любой город мира)", cityPh:"Например: Стамбул",
-    budget:"Бюджет, ₸ (на человека)", days:"Количество дней",
+    budget:"Бюджет (на человека)", days:"Количество дней",
     interests:"Интересы (необязательно)", interestsPh:"история, природа, национальная кухня…",
     go:"Составить маршрут", loading:"Составляем… 10–30 секунд",
     est:"Ориентировочная стоимость", bud:"Бюджет", free:"Бесплатно", tips:"Советы по экономии",
     print:"Печать / PDF", map:"На карте",
     dayN:n=>"День "+n,
     chips:["история","природа","национальная кухня","шопинг","с семьёй"],
-    eCity:"Введите город.", eBudget:"Бюджет должен быть не менее 1 000 ₸.", eDays:"Количество дней — от 1 до 14.",
+    eCity:"Введите город.", eBudget:m=>"Бюджет должен быть не менее "+m+".", eDays:"Количество дней — от 1 до 14.",
     eServer:"Не удалось составить маршрут. Подождите немного и повторите.", eBusy:"Слишком много запросов. Подождите немного и повторите.",
     eTime:"Ответ идёт слишком долго. Повторите попытку.", eNet:"Нет связи с сервером. Проверьте интернет и повторите.",
     foot:"Sapar AI — учебный проект. Цены и места ориентировочные, проверяйте перед поездкой."
@@ -184,24 +203,28 @@ const L = {
     h1:"A trip plan that fits your budget",
     sub:"Pick a city and set your budget — AI builds a detailed day-by-day plan for you.",
     city:"City (anywhere in the world)", cityPh:"e.g. Istanbul",
-    budget:"Budget, ₸ (per person)", days:"Number of days",
+    budget:"Budget (per person)", days:"Number of days",
     interests:"Interests (optional)", interestsPh:"history, nature, local food…",
     go:"Create itinerary", loading:"Building… 10–30 seconds",
     est:"Estimated cost", bud:"Budget", free:"Free", tips:"Money-saving tips",
     print:"Print / PDF", map:"Map",
     dayN:n=>"Day "+n,
     chips:["history","nature","local food","shopping","with family"],
-    eCity:"Please enter a city.", eBudget:"Budget must be at least 1,000 ₸.", eDays:"Days must be between 1 and 14.",
+    eCity:"Please enter a city.", eBudget:m=>"Budget must be at least "+m+".", eDays:"Days must be between 1 and 14.",
     eServer:"Could not build the plan. Please wait a bit and try again.", eBusy:"Too many requests. Please wait a bit and try again.",
     eTime:"The answer is taking too long. Please try again.", eNet:"Could not reach the server. Check your internet and try again.",
     foot:"Sapar AI is a student project. Prices and places are estimates — please double-check before you travel."
   }
 };
 
-let lang = "kk", t = L.kk, last = null;
+let lang = "kk", t = L.kk, last = null, cur = "KZT", budgetTouched = false;
 try { const s = localStorage.getItem("sapar-lang"); if (s && L[s]) lang = s; } catch(e) {}
 
-const fmt = n => new Intl.NumberFormat(lang === "en" ? "en-US" : "ru-RU").format(Math.round(n)) + " ₸";
+const fmt = (n, k) => {
+  k = k || cur;
+  const s = new Intl.NumberFormat(lang === "en" ? "en-US" : "ru-RU").format(Math.round(n));
+  return k === "KZT" ? s + " ₸" : CUR[k].sym + s;
+};
 const cityName = c => c[{kk:0, ru:1, en:2}[lang]];
 
 function chip(text, fn){ const b = el("button","chip",text); b.type = "button"; b.addEventListener("click", fn); return b; }
@@ -211,13 +234,27 @@ function addInterest(txt){
   f.value = parts.join(", ");
 }
 
+function buildBudgetChips(){
+  const bb = $("budgetChips"); bb.replaceChildren();
+  CUR[cur].chips.forEach(v => bb.append(chip(fmt(v, cur), () => { $("budget").value = v; budgetTouched = true; })));
+}
+function setCur(k){
+  cur = k; $("cur").value = k;
+  if (!budgetTouched) $("budget").value = CUR[k].def;
+  buildBudgetChips();
+}
+function autoCurrency(){
+  const v = $("city").value.trim().toLowerCase();
+  if (!KNOWN.has(v)) return;
+  setCur(KZ.has(v) ? "KZT" : "USD");
+}
+
 function buildLists(){
   const dl = $("cities"); dl.replaceChildren();
   CITIES.forEach(c => { const o = document.createElement("option"); o.value = cityName(c); dl.append(o); });
   const cb = $("cityChips"); cb.replaceChildren();
-  CITIES.filter(c => c[3]).forEach(c => cb.append(chip(cityName(c), () => { $("city").value = cityName(c); })));
-  const bb = $("budgetChips"); bb.replaceChildren();
-  [50000,100000,200000,500000,1000000].forEach(v => bb.append(chip(fmt(v), () => { $("budget").value = v; })));
+  CITIES.filter(c => c[3]).forEach(c => cb.append(chip(cityName(c), () => { $("city").value = cityName(c); autoCurrency(); })));
+  buildBudgetChips();
   const ib = $("intChips"); ib.replaceChildren();
   t.chips.forEach(x => ib.append(chip(x, () => addInterest(x))));
 }
@@ -242,7 +279,7 @@ function cleanTitle(s){
 }
 
 function render(r){
-  const { data, budget, city } = r;
+  const { data, budget, city } = r, k = r.cur;
   const box = $("result"); box.replaceChildren();
   const days = Array.isArray(data.days) ? data.days : [];
   const total = days.reduce((s, d) => s + (d.items || []).reduce((a, i) => a + (+i.cost || 0), 0), 0);
@@ -253,7 +290,7 @@ function render(r){
 
   const m = el("div","meter");
   const row = el("div","mrow");
-  row.append(el("span","",t.est + ": " + fmt(total)), el("span","",t.bud + ": " + fmt(budget)));
+  row.append(el("span","",t.est + ": " + fmt(total, k)), el("span","",t.bud + ": " + fmt(budget, k)));
   const bar = el("div","bar"), fill = document.createElement("b");
   if (total > budget) fill.className = "over";
   bar.append(fill);
@@ -279,7 +316,7 @@ function render(r){
         mid.append(a);
       }
       const c = +i.cost || 0;
-      it.append(el("div","time",i.time || ""), mid, el("div","cost" + (c ? "" : " free"), c ? fmt(c) : t.free));
+      it.append(el("div","time",i.time || ""), mid, el("div","cost" + (c ? "" : " free"), c ? fmt(c, k) : t.free));
       day.append(it);
     });
     box.append(day);
@@ -295,6 +332,9 @@ function render(r){
 
 $("dm").onclick = () => { $("days").value = Math.max(1, (+$("days").value || 2) - 1); };
 $("dp").onclick = () => { $("days").value = Math.min(14, (+$("days").value || 2) + 1); };
+$("budget").addEventListener("input", () => { budgetTouched = true; });
+$("cur").addEventListener("change", e => { budgetTouched = false; setCur(e.target.value); });
+$("city").addEventListener("input", autoCurrency);
 document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
 
 function userError(msg){ const e = new Error(msg); e.user = true; return e; }
@@ -302,9 +342,9 @@ function userError(msg){ const e = new Error(msg); e.user = true; return e; }
 $("f").addEventListener("submit", async e => {
   e.preventDefault();
   const er = $("err"); er.textContent = "";
-  const city = $("city").value.trim(), budget = +$("budget").value, days = +$("days").value;
+  const city = $("city").value.trim(), budget = +$("budget").value, days = +$("days").value, k = cur;
   if (!city){ er.textContent = t.eCity; return; }
-  if (!(budget >= 1000)){ er.textContent = t.eBudget; return; }
+  if (!(budget >= CUR[k].min)){ er.textContent = t.eBudget(fmt(CUR[k].min, k)); return; }
   if (!(days >= 1 && days <= 14)){ er.textContent = t.eDays; return; }
 
   const btn = $("go"); btn.disabled = true; btn.textContent = t.loading;
@@ -313,11 +353,11 @@ $("f").addEventListener("submit", async e => {
   try {
     const res = await fetch("/api/itinerary", {
       method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
-      body: JSON.stringify({ city, budget, days, interests: $("interests").value, lang })
+      body: JSON.stringify({ city, budget, days, interests: $("interests").value, lang, currency: k })
     });
     let data = null; try { data = await res.json(); } catch(x) {}
     if (!res.ok || !data || !Array.isArray(data.days)) throw userError(res.status === 429 ? t.eBusy : t.eServer);
-    last = { data, budget, city };
+    last = { data, budget, city, cur: k };
     render(last);
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch(ex) {
