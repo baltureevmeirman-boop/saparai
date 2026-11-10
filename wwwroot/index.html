@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--ink:#10262d;--muted:#586f75;--sea:#0b4f5c;--sea-d:#06323b;--foam:#eaf3f2;--line:#d3e3e1;--gold:#f2a900;--danger:#b3261e;--r:14px}
 *{box-sizing:border-box}
@@ -45,6 +46,34 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
 .go:hover{filter:brightness(.95)}
 .go:disabled{opacity:.6;cursor:wait}
 .err{color:var(--danger);font-weight:500;margin-top:14px;min-height:1em}
+
+.mapcard{margin-top:20px}
+.maphead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.maphead h2{margin:0;font-size:1.2rem}
+.mapsel{font-weight:600;color:var(--sea)}
+.maphint{color:var(--muted);margin:6px 0 12px;font-size:.92rem;line-height:1.5}
+#map{height:430px;border-radius:12px;border:1px solid var(--line);isolation:isolate;background:#cfe6ee}
+#lmBox{margin-top:16px}
+#lmBox[hidden]{display:none}
+#lmBox h3{margin:0 0 10px;font-size:1rem}
+.lmrow{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity}
+.lm{flex:0 0 156px;scroll-snap-align:start}
+.lmb{display:block;width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;padding:0;cursor:pointer;text-align:left;overflow:hidden;font:inherit;color:var(--ink)}
+.lmb:hover{border-color:var(--gold)}
+.lmb img,.lmb .ph{width:100%;height:104px;object-fit:cover;display:block;background:#dfeceb}
+.lmb .ph{display:flex;align-items:center;justify-content:center;font-size:1.7rem}
+.lmb span{display:block;padding:8px 10px;font-size:.85rem;font-weight:500;line-height:1.3;min-height:3.2em}
+.wl{display:inline-block;margin-top:4px;font-size:.75rem;color:var(--sea);text-decoration:none}
+.wl:hover{text-decoration:underline}
+.credit{color:var(--muted);font-size:.78rem;margin:12px 0 0}
+.pmw{background:transparent;border:0}
+.pm{width:46px;height:46px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.4);background:#dfeceb;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.pm img{width:100%;height:100%;object-fit:cover;display:block}
+.cpw{background:transparent;border:0}
+.cp{width:18px;height:18px;border-radius:50%;background:var(--gold);border:3px solid #fff;animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(242,169,0,.7)}70%{box-shadow:0 0 0 18px rgba(242,169,0,0)}100%{box-shadow:0 0 0 0 rgba(242,169,0,0)}}
+.cityTip{font-weight:700;color:var(--sea-d)}
+
 #result{margin-top:28px}
 .meter{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:20px}
 .mrow{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:600}
@@ -72,9 +101,9 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
 .skel{height:90px;border-radius:var(--r);background:linear-gradient(90deg,#dbe8e6 25%,#eef5f4 50%,#dbe8e6 75%);background-size:200% 100%;animation:sk 1.2s infinite;margin-bottom:14px}
 @keyframes sk{to{background-position:-200% 0}}
 .foot{text-align:center;color:var(--muted);font-size:.85rem;padding:0 18px 36px;margin:0}
-@media(max-width:720px){form{grid-template-columns:1fr}.item{grid-template-columns:52px 1fr}.cost{grid-column:2;justify-self:start}}
-@media(prefers-reduced-motion:reduce){.skel{animation:none}.bar b{transition:none}}
-@media print{.top,.formcard,.actions,.foot{display:none}main{margin-top:0}body,html{background:#fff}.card,.day,.meter{box-shadow:none}}
+@media(max-width:720px){form{grid-template-columns:1fr}.item{grid-template-columns:52px 1fr}.cost{grid-column:2;justify-self:start}#map{height:320px}}
+@media(prefers-reduced-motion:reduce){.skel{animation:none}.bar b{transition:none}.cp{animation:none}}
+@media print{.top,.formcard,.mapcard,.actions,.foot{display:none}main{margin-top:0}body,html{background:#fff}.card,.day,.meter{box-shadow:none}}
 </style>
 </head>
 <body>
@@ -129,15 +158,30 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
     </form>
     <div class="err" id="err" role="alert"></div>
   </section>
+
+  <section class="card mapcard">
+    <div class="maphead"><h2 data-i="mapTitle"></h2><span id="mapSel" class="mapsel"></span></div>
+    <p class="maphint" data-i="mapHint"></p>
+    <div id="map" role="region" aria-label="Map"></div>
+    <div id="lmBox" hidden>
+      <h3 data-i="lm"></h3>
+      <div class="lmrow" id="lmRow"></div>
+    </div>
+    <p class="credit" data-i="credit"></p>
+  </section>
+
   <section id="result" aria-live="polite"></section>
 </main>
 <p class="foot" data-i="foot"></p>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// [қазақша, русский, English]. Алғашқы 12 қала — Қазақстанда.
+// [қазақша, русский, English, танымал белгісі]. Алғашқы 12 қала — Қазақстанда.
 const CITIES = [
   ["Астана","Астана","Astana",1],["Алматы","Алматы","Almaty",1],["Шымкент","Шымкент","Shymkent"],
   ["Ақтау","Актау","Aktau",1],["Түркістан","Туркестан","Turkistan",1],["Қарағанды","Караганда","Karaganda"],
@@ -147,7 +191,7 @@ const CITIES = [
   ["Бішкек","Бишкек","Bishkek"],["Баку","Баку","Baku"],["Тбилиси","Тбилиси","Tbilisi"],
   ["Стамбул","Стамбул","Istanbul",1],["Анталья","Анталья","Antalya"],["Дубай","Дубай","Dubai",1],
   ["Каир","Каир","Cairo"],["Шарм-эль-Шейх","Шарм-эль-Шейх","Sharm El Sheikh"],
-  ["Париж","Париж","Paris",1],["Рим","Рим","Rome"],["Барселона","Барселона","Barcelona"],
+  ["Париж","Париж","Paris",1],["Рим","Рим","Rome"],["Барселона","Барселона","Barcelona",1],
   ["Лондон","Лондон","London"],["Прага","Прага","Prague"],["Вена","Вена","Vienna"],
   ["Берлин","Берлин","Berlin"],["Амстердам","Амстердам","Amsterdam"],["Будапешт","Будапешт","Budapest"],
   ["Афины","Афины","Athens"],["Москва","Москва","Moscow"],["Санкт-Петербург","Санкт-Петербург","Saint Petersburg"],
@@ -157,8 +201,72 @@ const CITIES = [
   ["Нью-Йорк","Нью-Йорк","New York"]
 ];
 const KZ_COUNT = 12;
-const KZ = new Set(), KNOWN = new Set();
-CITIES.forEach((c, i) => c.slice(0, 3).forEach(n => { KNOWN.add(n.toLowerCase()); if (i < KZ_COUNT) KZ.add(n.toLowerCase()); }));
+const KZ = new Set(), KNOWN = new Set(), NAME2EN = {};
+CITIES.forEach((c, i) => c.slice(0, 3).forEach(n => {
+  const k = n.toLowerCase();
+  KNOWN.add(k); NAME2EN[k] = c[2];
+  if (i < KZ_COUNT) KZ.add(k);
+}));
+
+// Қала: [lat, lng, ел, [Wikipedia мақалаларының атаулары]]
+const GEO = {
+  "Astana":[51.1694,71.4491,"Kazakhstan",["Baiterek","Khan Shatyr Entertainment Center","Hazrat Sultan Mosque"]],
+  "Almaty":[43.2389,76.8897,"Kazakhstan",["Kok Tobe","Medeu","Ascension Cathedral, Almaty"]],
+  "Shymkent":[42.3417,69.5901,"Kazakhstan",[]],
+  "Aktau":[43.6532,51.1975,"Kazakhstan",[]],
+  "Turkistan":[43.2973,68.2517,"Kazakhstan",["Mausoleum of Khoja Ahmed Yasawi"]],
+  "Karaganda":[49.8047,73.1094,"Kazakhstan",[]],
+  "Aktobe":[50.2839,57.1669,"Kazakhstan",[]],
+  "Atyrau":[47.0945,51.9238,"Kazakhstan",[]],
+  "Oskemen":[49.9714,82.6059,"Kazakhstan",[]],
+  "Kokshetau":[53.2948,69.4048,"Kazakhstan",[]],
+  "Oral":[51.2333,51.3667,"Kazakhstan",[]],
+  "Burabay":[53.0833,70.3,"Kazakhstan",["Burabay National Park"]],
+  "Tashkent":[41.2995,69.2401,"Uzbekistan",["Chorsu Bazaar","Tashkent TV Tower","Hazrati Imam Complex"]],
+  "Samarkand":[39.627,66.975,"Uzbekistan",["Registan","Gur-e-Amir","Shah-i-Zinda"]],
+  "Bukhara":[39.7747,64.4286,"Uzbekistan",["Ark of Bukhara","Kalyan Minaret"]],
+  "Bishkek":[42.8746,74.5698,"Kyrgyzstan",["Ala-Too Square"]],
+  "Baku":[40.4093,49.8671,"Azerbaijan",["Maiden Tower","Flame Towers","Heydar Aliyev Center"]],
+  "Tbilisi":[41.7151,44.8271,"Georgia",["Narikala","Holy Trinity Cathedral of Tbilisi","Bridge of Peace (Tbilisi)"]],
+  "Istanbul":[41.0082,28.9784,"Turkey",["Hagia Sophia","Blue Mosque","Topkapı Palace"]],
+  "Antalya":[36.8969,30.7133,"Turkey",["Kaleiçi"]],
+  "Dubai":[25.2048,55.2708,"United Arab Emirates",["Burj Khalifa","Palm Jumeirah","Dubai Mall"]],
+  "Cairo":[30.0444,31.2357,"Egypt",["Giza pyramid complex","Egyptian Museum","Khan el-Khalili"]],
+  "Sharm El Sheikh":[27.9158,34.33,"Egypt",["Ras Muhammad National Park"]],
+  "Paris":[48.8566,2.3522,"France",["Eiffel Tower","Louvre","Notre-Dame de Paris","Arc de Triomphe"]],
+  "Rome":[41.9028,12.4964,"Italy",["Colosseum","Trevi Fountain","Pantheon, Rome"]],
+  "Barcelona":[41.3874,2.1686,"Spain",["Sagrada Família","Camp Nou","Park Güell","Casa Batlló"]],
+  "London":[51.5074,-0.1278,"United Kingdom",["Big Ben","Tower Bridge","Buckingham Palace","London Eye"]],
+  "Prague":[50.0755,14.4378,"Czechia",["Charles Bridge","Prague Castle","Old Town Square"]],
+  "Vienna":[48.2082,16.3738,"Austria",["Schönbrunn Palace","St. Stephen's Cathedral, Vienna","Belvedere, Vienna"]],
+  "Berlin":[52.52,13.405,"Germany",["Brandenburg Gate","Reichstag building","Berlin Wall"]],
+  "Amsterdam":[52.3676,4.9041,"Netherlands",["Rijksmuseum","Anne Frank House","Van Gogh Museum"]],
+  "Budapest":[47.4979,19.0402,"Hungary",["Hungarian Parliament Building","Fisherman's Bastion","Széchenyi Chain Bridge"]],
+  "Athens":[37.9838,23.7275,"Greece",["Acropolis of Athens","Parthenon","Temple of Olympian Zeus, Athens"]],
+  "Moscow":[55.7558,37.6173,"Russia",["Red Square","Saint Basil's Cathedral","Moscow Kremlin"]],
+  "Saint Petersburg":[59.9311,30.3609,"Russia",["Hermitage Museum","Church of the Savior on Blood","Peterhof Palace"]],
+  "Tokyo":[35.6762,139.6503,"Japan",["Tokyo Skytree","Sensō-ji","Tokyo Tower"]],
+  "Seoul":[37.5665,126.978,"South Korea",["Gyeongbokgung","N Seoul Tower","Bukchon Hanok Village"]],
+  "Bangkok":[13.7563,100.5018,"Thailand",["Grand Palace","Wat Arun","Wat Pho"]],
+  "Phuket":[7.8804,98.3923,"Thailand",["Wat Chalong"]],
+  "Singapore":[1.3521,103.8198,"Singapore",["Marina Bay Sands","Gardens by the Bay","Merlion"]],
+  "Kuala Lumpur":[3.139,101.6869,"Malaysia",["Petronas Towers","Batu Caves","Kuala Lumpur Tower"]],
+  "Bali":[-8.4095,115.1889,"Indonesia",["Tanah Lot","Uluwatu Temple","Besakih"]],
+  "Beijing":[39.9042,116.4074,"China",["Forbidden City","Temple of Heaven","Great Wall of China"]],
+  "New Delhi":[28.6139,77.209,"India",["India Gate","Red Fort","Qutb Minar"]],
+  "New York":[40.7128,-74.006,"United States of America",["Statue of Liberty","Empire State Building","Central Park","Brooklyn Bridge"]]
+};
+const COUNTRY = {
+  "Kazakhstan":["Қазақстан","Казахстан"],"Uzbekistan":["Өзбекстан","Узбекистан"],"Kyrgyzstan":["Қырғызстан","Киргизия"],
+  "Azerbaijan":["Әзірбайжан","Азербайджан"],"Georgia":["Грузия","Грузия"],"Turkey":["Түркия","Турция"],
+  "United Arab Emirates":["БАӘ","ОАЭ"],"Egypt":["Мысыр","Египет"],"France":["Франция","Франция"],"Italy":["Италия","Италия"],
+  "Spain":["Испания","Испания"],"United Kingdom":["Ұлыбритания","Великобритания"],"Czechia":["Чехия","Чехия"],
+  "Austria":["Аустрия","Австрия"],"Germany":["Германия","Германия"],"Netherlands":["Нидерланд","Нидерланды"],
+  "Hungary":["Венгрия","Венгрия"],"Greece":["Грекия","Греция"],"Russia":["Ресей","Россия"],"Japan":["Жапония","Япония"],
+  "South Korea":["Оңтүстік Корея","Южная Корея"],"Thailand":["Тайланд","Таиланд"],"Singapore":["Сингапур","Сингапур"],
+  "Malaysia":["Малайзия","Малайзия"],"Indonesia":["Индонезия","Индонезия"],"China":["Қытай","Китай"],
+  "India":["Үндістан","Индия"],"United States of America":["АҚШ","США"]
+};
 
 const CUR = {
   KZT:{ sym:"₸", min:1000, def:200000, chips:[50000,100000,200000,500000,1000000] },
@@ -166,7 +274,7 @@ const CUR = {
   EUR:{ sym:"€", min:10,   def:1000,   chips:[200,500,1000,2000,5000] }
 };
 
-const L = {
+const L_ = {
   kk:{
     h1:"Бюджетіңе сай маршрут",
     sub:"Қаланы таңдаңыз, бюджетті жазыңыз — жасанды интеллект әр күнге нақты жоспар құрып береді.",
@@ -181,6 +289,9 @@ const L = {
     eCity:"Қаланы енгізіңіз.", eBudget:m=>"Бюджет кемінде "+m+" болуы керек.", eDays:"Күн саны 1 мен 14 аралығында болуы керек.",
     eServer:"Маршрут жасалмады. Біраз күтіп, қайта көріңіз.", eBusy:"Сұраныс тым көп. Біраз күтіп, қайта көріңіз.",
     eTime:"Жауап ұзақ күтілді. Қайта көріңіз.", eNet:"Серверге қосыла алмады. Интернетті тексеріп, қайта көріңіз.",
+    mapTitle:"Карта", mapHint:"Қаланы картадан таңдаңыз немесе жоғарыдағы жолға жазыңыз. Ел мен қала ерекшеленеді, көрікті жерлердің суреттері шығады.",
+    lm:"Көрікті жерлер", wl:"Wikipedia", notFound:"Бұл қала картадан табылмады.",
+    credit:"Карта: © OpenStreetMap. Суреттер: Wikipedia / Wikimedia Commons.",
     foot:"Sapar AI — оқу жобасы. Бағалар мен орындар болжамды, сапар алдында тексеріңіз."
   },
   ru:{
@@ -197,6 +308,9 @@ const L = {
     eCity:"Введите город.", eBudget:m=>"Бюджет должен быть не менее "+m+".", eDays:"Количество дней — от 1 до 14.",
     eServer:"Не удалось составить маршрут. Подождите немного и повторите.", eBusy:"Слишком много запросов. Подождите немного и повторите.",
     eTime:"Ответ идёт слишком долго. Повторите попытку.", eNet:"Нет связи с сервером. Проверьте интернет и повторите.",
+    mapTitle:"Карта", mapHint:"Выберите город на карте или введите его выше. Страна и город подсвечиваются, показываются фото достопримечательностей.",
+    lm:"Достопримечательности", wl:"Wikipedia", notFound:"Город не найден на карте.",
+    credit:"Карта: © OpenStreetMap. Фото: Wikipedia / Wikimedia Commons.",
     foot:"Sapar AI — учебный проект. Цены и места ориентировочные, проверяйте перед поездкой."
   },
   en:{
@@ -213,12 +327,15 @@ const L = {
     eCity:"Please enter a city.", eBudget:m=>"Budget must be at least "+m+".", eDays:"Days must be between 1 and 14.",
     eServer:"Could not build the plan. Please wait a bit and try again.", eBusy:"Too many requests. Please wait a bit and try again.",
     eTime:"The answer is taking too long. Please try again.", eNet:"Could not reach the server. Check your internet and try again.",
+    mapTitle:"Map", mapHint:"Pick a city on the map or type it above. The country and city are highlighted and landmark photos appear.",
+    lm:"Landmarks", wl:"Wikipedia", notFound:"City not found on the map.",
+    credit:"Map: © OpenStreetMap. Photos: Wikipedia / Wikimedia Commons.",
     foot:"Sapar AI is a student project. Prices and places are estimates — please double-check before you travel."
   }
 };
 
-let lang = "kk", t = L.kk, last = null, cur = "KZT", budgetTouched = false;
-try { const s = localStorage.getItem("sapar-lang"); if (s && L[s]) lang = s; } catch(e) {}
+let lang = "kk", t = L_.kk, last = null, cur = "KZT", budgetTouched = false;
+try { const s = localStorage.getItem("sapar-lang"); if (s && L_[s]) lang = s; } catch(e) {}
 
 const fmt = (n, k) => {
   k = k || cur;
@@ -226,6 +343,7 @@ const fmt = (n, k) => {
   return k === "KZT" ? s + " ₸" : CUR[k].sym + s;
 };
 const cityName = c => c[{kk:0, ru:1, en:2}[lang]];
+const countryLabel = n => { const x = COUNTRY[n]; return x ? (lang === "kk" ? x[0] : lang === "ru" ? x[1] : n) : n; };
 
 function chip(text, fn){ const b = el("button","chip",text); b.type = "button"; b.addEventListener("click", fn); return b; }
 function addInterest(txt){
@@ -253,14 +371,14 @@ function buildLists(){
   const dl = $("cities"); dl.replaceChildren();
   CITIES.forEach(c => { const o = document.createElement("option"); o.value = cityName(c); dl.append(o); });
   const cb = $("cityChips"); cb.replaceChildren();
-  CITIES.filter(c => c[3]).forEach(c => cb.append(chip(cityName(c), () => { $("city").value = cityName(c); autoCurrency(); })));
+  CITIES.filter(c => c[3]).forEach(c => cb.append(chip(cityName(c), () => pickCity(c[2]))));
   buildBudgetChips();
   const ib = $("intChips"); ib.replaceChildren();
   t.chips.forEach(x => ib.append(chip(x, () => addInterest(x))));
 }
 
 function setLang(l){
-  lang = l; t = L[l];
+  lang = l; t = L_[l];
   try { localStorage.setItem("sapar-lang", l); } catch(e) {}
   document.documentElement.lang = l;
   document.title = "Sapar AI — " + t.h1;
@@ -268,9 +386,244 @@ function setLang(l){
   document.querySelectorAll("[data-ph]").forEach(e => { e.placeholder = t[e.dataset.ph]; });
   document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === l));
   buildLists();
+  mapLang();
   if (last) render(last);
 }
 
+/* ================= КАРТА ================= */
+let map = null, layer = null, ctry = null, dots = null, world = null;
+let token = 0, curEn = null, curCustom = null, cityTimer = null;
+const lmCache = {};
+
+function initMap(){
+  if (typeof L === "undefined"){ document.querySelector(".mapcard").hidden = true; return; }
+  map = L.map("map", { minZoom:2, worldCopyJump:true, scrollWheelZoom:false, dragging:!L.Browser.mobile, tap:false }).setView([32, 52], 3);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom:18, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+  }).addTo(map);
+  dots = L.layerGroup().addTo(map);
+  layer = L.layerGroup().addTo(map);
+  map.on("focus", () => map.scrollWheelZoom.enable());
+  map.on("blur", () => map.scrollWheelZoom.disable());
+  setTimeout(() => map.invalidateSize(), 300);
+  loadWorld();
+}
+
+async function loadWorld(){
+  try {
+    if (typeof topojson === "undefined") return;
+    const r = await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+    const topo = await r.json();
+    world = topojson.feature(topo, topo.objects.countries).features;
+    if (curEn || curCustom) mapLang();
+  } catch(e) {}
+}
+
+function inRing(pt, ring){
+  let c = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) c = !c;
+  }
+  return c;
+}
+function inPoly(pt, poly){
+  if (!inRing(pt, poly[0])) return false;
+  for (let k = 1; k < poly.length; k++) if (inRing(pt, poly[k])) return false;
+  return true;
+}
+function countryAt(lat, lng){
+  const pt = [lng, lat];
+  for (const f of world || []){
+    const g = f.geometry; if (!g) continue;
+    const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+    for (const p of polys) if (inPoly(pt, p)) return f;
+  }
+  return null;
+}
+function findCountry(lat, lng){
+  if (!world) return null;
+  let f = countryAt(lat, lng);
+  if (f) return f;
+  const d = 0.25;
+  for (const [a, b] of [[d,0],[-d,0],[0,d],[0,-d],[d,d],[-d,-d],[d,-d],[-d,d]]){
+    f = countryAt(lat + a, lng + b);
+    if (f) return f;
+  }
+  return null;
+}
+
+function buildDots(){
+  if (!map) return;
+  dots.clearLayers();
+  CITIES.forEach(c => {
+    const g = GEO[c[2]]; if (!g) return;
+    const m = L.circleMarker([g[0], g[1]], { radius:5, color:"#fff", weight:1.5, fillColor:"#0b4f5c", fillOpacity:.95 });
+    m.bindTooltip(cityName(c), { direction:"top" });
+    m.on("click", () => pickCity(c[2]));
+    dots.addLayer(m);
+  });
+}
+
+async function wiki(params){
+  const r = await fetch("https://en.wikipedia.org/w/api.php?format=json&origin=*&" + params);
+  if (!r.ok) throw new Error("wiki");
+  return r.json();
+}
+function toSpot(p){
+  const c = p.coordinates && p.coordinates[0];
+  const l = p.langlinks && p.langlinks[0];
+  return {
+    en: p.title,
+    name: l ? (l.title || l["*"] || p.title) : p.title,
+    lat: c ? c.lat : null, lng: c ? c.lon : null,
+    img: p.thumbnail ? p.thumbnail.source : "",
+    url: "https://en.wikipedia.org/wiki/" + encodeURIComponent(p.title.replace(/ /g, "_"))
+  };
+}
+async function getSpots(titles, lat, lng){
+  const key = lang + "|" + lat + "," + lng + "|" + titles.join("|");
+  if (lmCache[key]) return lmCache[key];
+  const prop = "&prop=pageimages|coordinates" + (lang !== "en" ? "|langlinks" : "");
+  const extra = "&piprop=thumbnail&pithumbsize=360&pilimit=50&colimit=50" + (lang !== "en" ? "&lllang=" + lang + "&lllimit=50" : "");
+  const spots = [], seen = new Set();
+  const near = s => s.lat == null || map.distance([lat, lng], [s.lat, s.lng]) < 250000;
+  if (titles.length){
+    try {
+      const d = await wiki("action=query&redirects=1&titles=" + encodeURIComponent(titles.join("|")) + prop + extra);
+      const q = d.query || {}, norm = {}, red = {}, by = {};
+      (q.normalized || []).forEach(n => { norm[n.from] = n.to; });
+      (q.redirects || []).forEach(r => { red[r.from] = r.to; });
+      Object.values(q.pages || {}).forEach(p => { by[p.title] = p; });
+      titles.forEach(t0 => {
+        let t1 = norm[t0] || t0; t1 = red[t1] || t1;
+        const p = by[t1];
+        if (!p || "missing" in p) return;
+        const s = toSpot(p);
+        if (!near(s) || seen.has(s.en)) return;
+        seen.add(s.en); spots.push(s);
+      });
+    } catch(e) {}
+  }
+  if (spots.length < 3){
+    try {
+      const d = await wiki("action=query&generator=geosearch&ggscoord=" + encodeURIComponent(lat + "|" + lng) + "&ggsradius=10000&ggslimit=30" + prop + extra);
+      const pages = Object.values((d.query || {}).pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0));
+      for (const p of pages){
+        if (spots.length >= 5) break;
+        const s = toSpot(p);
+        if (!s.img || s.lat == null || seen.has(s.en) || !near(s)) continue;
+        seen.add(s.en); spots.push(s);
+      }
+    } catch(e) {}
+  }
+  const out = spots.slice(0, 5);
+  if (out.length) lmCache[key] = out;
+  return out;
+}
+
+function renderSpots(spots, lat, lng){
+  const row = $("lmRow"); row.replaceChildren();
+  const pts = [[lat, lng]];
+  spots.forEach(s => {
+    let mk = null;
+    if (s.lat != null){
+      const wrap = el("div", "pm");
+      if (s.img){ const im = document.createElement("img"); im.src = s.img; im.alt = s.name; wrap.append(im); } else wrap.textContent = "📍";
+      mk = L.marker([s.lat, s.lng], { icon: L.divIcon({ className:"pmw", html:wrap, iconSize:[46,46], iconAnchor:[23,23] }) }).addTo(layer);
+      mk.bindTooltip(s.name, { direction:"top", offset:[0,-24] });
+      pts.push([s.lat, s.lng]);
+    }
+    const card = el("div", "lm");
+    const b = el("button", "lmb"); b.type = "button";
+    if (s.img){ const im = document.createElement("img"); im.src = s.img; im.alt = s.name; im.loading = "lazy"; b.append(im); }
+    else b.append(el("div", "ph", "📍"));
+    b.append(el("span", "", s.name));
+    b.addEventListener("click", () => { if (mk){ map.flyTo([s.lat, s.lng], 15, { duration:1 }); mk.openTooltip(); } });
+    const a = el("a", "wl", t.wl + " ↗");
+    a.href = s.url; a.target = "_blank"; a.rel = "noopener";
+    card.append(b, a);
+    row.append(card);
+  });
+  $("lmBox").hidden = spots.length === 0;
+  return pts;
+}
+
+async function showCity(en, custom, quiet){
+  if (!map) return;
+  const g = custom || GEO[en];
+  if (!g) return;
+  const my = ++token;
+  const lat = g[0], lng = g[1], titles = g[3] || [];
+  curEn = custom ? null : en;
+  curCustom = custom || null;
+  layer.clearLayers();
+  if (ctry){ map.removeLayer(ctry); ctry = null; }
+
+  const f = findCountry(lat, lng);
+  const cname = g[2] || (f ? f.properties.name : "");
+  const entry = custom ? null : CITIES.find(c => c[2] === en);
+  const label = custom ? g[4] : cityName(entry);
+  $("mapSel").textContent = "📍 " + label + (cname ? " · " + countryLabel(cname) : "");
+  if (custom && !budgetTouched && cname) setCur(cname === "Kazakhstan" ? "KZT" : "USD");
+
+  if (f) ctry = L.geoJSON(f, { style:{ color:"#f2a900", weight:2, fillColor:"#f2a900", fillOpacity:.22 }, interactive:false }).addTo(map);
+  const pin = L.marker([lat, lng], {
+    icon: L.divIcon({ className:"cpw", html: el("div", "cp"), iconSize:[18,18], iconAnchor:[9,9] }),
+    interactive:false, keyboard:false
+  }).addTo(layer);
+  pin.bindTooltip(label, { permanent:true, direction:"right", offset:[12,0], className:"cityTip" });
+
+  if (!quiet){
+    if (ctry) map.flyToBounds(ctry.getBounds(), { padding:[20,20], maxZoom:6, duration:1.1 });
+    else map.flyTo([lat, lng], 8, { duration:1.1 });
+  }
+  const t0 = Date.now();
+  $("lmBox").hidden = true;
+  const spots = await getSpots(titles, lat, lng);
+  if (my !== token) return;
+  const pts = renderSpots(spots, lat, lng);
+  if (!quiet){
+    await sleep(Math.max(0, 1400 - (Date.now() - t0)));
+    if (my !== token) return;
+    if (pts.length > 1) map.flyToBounds(L.latLngBounds(pts), { padding:[50,50], maxZoom:14, duration:1.4 });
+    else map.flyTo([lat, lng], 11, { duration:1.2 });
+  }
+}
+
+function pickCity(en){
+  const c = CITIES.find(x => x[2] === en);
+  if (!c) return;
+  $("city").value = cityName(c);
+  autoCurrency();
+  showCity(en);
+}
+
+async function geocode(q){
+  try {
+    const r = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=en&q=" + encodeURIComponent(q));
+    const a = await r.json();
+    return a.length ? { lat:+a[0].lat, lng:+a[0].lon } : null;
+  } catch(e) { return null; }
+}
+async function cityChange(){
+  if (!map) return;
+  const v = $("city").value.trim();
+  if (!v) return;
+  const en = NAME2EN[v.toLowerCase()];
+  if (en){ if (en !== curEn) showCity(en); return; }
+  const g = await geocode(v);
+  if (!g){ $("mapSel").textContent = t.notFound; return; }
+  showCity(null, [g.lat, g.lng, "", [], v]);
+}
+function mapLang(){
+  if (!map) return;
+  buildDots();
+  if (curEn) showCity(curEn, null, true);
+  else if (curCustom) showCity(null, curCustom, true);
+}
+
+/* ================= МАРШРУТ ================= */
 function cleanTitle(s){
   s = String(s || "");
   const re = /^\s*(?:\d+\s*[-–]?\s*(?:ші)?\s*(?:күн|день|day)|(?:день|day)\s*\d+)\s*[.:\-–]*\s*/i;
@@ -334,7 +687,13 @@ $("dm").onclick = () => { $("days").value = Math.max(1, (+$("days").value || 2) 
 $("dp").onclick = () => { $("days").value = Math.min(14, (+$("days").value || 2) + 1); };
 $("budget").addEventListener("input", () => { budgetTouched = true; });
 $("cur").addEventListener("change", e => { budgetTouched = false; setCur(e.target.value); });
-$("city").addEventListener("input", autoCurrency);
+$("city").addEventListener("input", () => {
+  autoCurrency();
+  clearTimeout(cityTimer);
+  const en = NAME2EN[$("city").value.trim().toLowerCase()];
+  if (en && en !== curEn) cityTimer = setTimeout(() => showCity(en), 350);
+});
+$("city").addEventListener("change", cityChange);
 document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
 
 function userError(msg){ const e = new Error(msg); e.user = true; return e; }
@@ -368,6 +727,7 @@ $("f").addEventListener("submit", async e => {
   }
 });
 
+try { initMap(); } catch(e) { map = null; document.querySelector(".mapcard").hidden = true; }
 setLang(lang);
 </script>
 </body>
