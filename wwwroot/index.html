@@ -75,22 +75,28 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
 .cityTip{font-weight:700;color:var(--sea-d)}
 
 #result{margin-top:28px}
-.meter{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:20px}
-.mrow{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:600}
-.bar{height:12px;background:var(--foam);border-radius:99px;margin:12px 0;overflow:hidden}
-.bar b{display:block;height:100%;width:0;background:var(--sea);border-radius:99px;transition:width .6s}
+.meter{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.mrow{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:600;margin-bottom:8px}
+.bar{height:12px;background:var(--foam);border-radius:99px;margin:10px 0;overflow:hidden}
+.bar b{display:block;height:100%;width:0;background:var(--sea);border-radius:99px;transition:width .4s}
 .bar b.over{background:var(--danger)}
 .sum{color:var(--muted);line-height:1.55;margin:0}
-.actions{display:flex;justify-content:flex-end;margin-bottom:12px}
+.actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .ghost{font:inherit;font-size:.9rem;font-weight:500;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;color:var(--ink)}
+.ghost:hover{border-color:var(--gold)}
+.pickhint{color:var(--muted);font-size:.92rem;margin:0 0 12px;line-height:1.5}
 .day{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin-bottom:16px}
-.dh{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.dh{display:flex;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap}
 .dn{background:var(--sea);color:#fff;font-weight:700;border-radius:99px;padding:5px 12px;font-size:.85rem;white-space:nowrap}
 .dh h2{margin:0;font-size:1.15rem}
-.item{display:grid;grid-template-columns:58px 1fr auto;gap:14px;padding:13px 0;border-top:1px solid var(--line);align-items:start}
+.dsub{margin-left:auto;font-weight:700;color:var(--sea);font-size:.92rem;white-space:nowrap}
+.item{display:grid;grid-template-columns:28px 58px 1fr auto;gap:12px;padding:13px 0;border-top:1px solid var(--line);align-items:start;cursor:pointer}
+.pick{width:22px;height:22px;padding:0;margin:2px 0 0;accent-color:var(--sea);cursor:pointer;flex:none}
 .time{font-weight:700;color:var(--sea)}
 .item h3{margin:0 0 4px;font-size:1rem}
 .item p{margin:0;color:var(--muted);line-height:1.5;font-size:.95rem}
+.item.off h3,.item.off p,.item.off .time{opacity:.45}
+.item.off .cost{opacity:.4;text-decoration:line-through}
 .map{display:inline-block;margin-top:6px;font-size:.82rem;color:var(--sea);text-decoration:none;font-weight:500}
 .map:hover{text-decoration:underline}
 .cost{font-weight:700;white-space:nowrap;background:#eef6f5;border-radius:99px;padding:4px 12px;font-size:.9rem}
@@ -98,12 +104,18 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
 .tips{background:var(--sea);color:#fff;border-radius:var(--r);padding:20px 24px}
 .tips h2{margin:0 0 10px;font-size:1.1rem}
 .tips li{margin:6px 0;line-height:1.5}
+.sbar{position:sticky;bottom:10px;z-index:20;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px 18px;box-shadow:0 10px 30px rgba(6,50,59,.28);margin-top:16px}
+.sline{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:500;font-size:.92rem}
+.sn{color:var(--muted)}
+.st{font-size:1.05rem}
+.sl{font-weight:700;color:var(--sea)}
+.sl.bad{color:var(--danger)}
 .skel{height:90px;border-radius:var(--r);background:linear-gradient(90deg,#dbe8e6 25%,#eef5f4 50%,#dbe8e6 75%);background-size:200% 100%;animation:sk 1.2s infinite;margin-bottom:14px}
 @keyframes sk{to{background-position:-200% 0}}
 .foot{text-align:center;color:var(--muted);font-size:.85rem;padding:0 18px 36px;margin:0}
-@media(max-width:720px){form{grid-template-columns:1fr}.item{grid-template-columns:52px 1fr}.cost{grid-column:2;justify-self:start}#map{height:320px}}
+@media(max-width:720px){form{grid-template-columns:1fr}.item{grid-template-columns:28px 52px 1fr}.cost{grid-column:3;justify-self:start}#map{height:320px}.dsub{margin-left:0}}
 @media(prefers-reduced-motion:reduce){.skel{animation:none}.bar b{transition:none}.cp{animation:none}}
-@media print{.top,.formcard,.mapcard,.actions,.foot{display:none}main{margin-top:0}body,html{background:#fff}.card,.day,.meter{box-shadow:none}}
+@media print{.top,.formcard,.mapcard,.actions,.pickhint,.sbar,.pick,.foot{display:none}.item{grid-template-columns:58px 1fr auto}.item.off{display:none}main{margin-top:0}body,html{background:#fff}.card,.day,.meter{box-shadow:none}}
 </style>
 </head>
 <body>
@@ -180,6 +192,9 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
 const $ = id => document.getElementById(id);
 function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// true — орындардың бәрі алдын ала белгіленген, false — бәрі бос болып басталады
+const DEFAULT_ON = true;
 
 // [қазақша, русский, English, танымал белгісі]. Алғашқы 12 қала — Қазақстанда.
 const CITIES = [
@@ -286,6 +301,10 @@ const L_ = {
     print:"Басып шығару / PDF", map:"Картада",
     dayN:n=>n+"-күн",
     chips:["тарих","табиғат","ұлттық тағам","шопинг","отбасымен"],
+    allPlan:"Барлық жоспардың құны",
+    pickHint:"Барғыңыз келетін орындарды белгілеңіз — таңдалғандардың жиынтық құны бюджетпен салыстырылып, автоматты есептеледі.",
+    selAll:"Бәрін таңдау", clearAll:"Тазалау",
+    selN:n=>"Таңдалған: "+n+" орын", sTotal:"Жиыны", left:"Қалды", over:"Бюджеттен асты", none:"Ештеңе таңдалмады",
     eCity:"Қаланы енгізіңіз.", eBudget:m=>"Бюджет кемінде "+m+" болуы керек.", eDays:"Күн саны 1 мен 14 аралығында болуы керек.",
     eServer:"Маршрут жасалмады. Біраз күтіп, қайта көріңіз.", eBusy:"Сұраныс тым көп. Біраз күтіп, қайта көріңіз.",
     eTime:"Жауап ұзақ күтілді. Қайта көріңіз.", eNet:"Серверге қосыла алмады. Интернетті тексеріп, қайта көріңіз.",
@@ -305,6 +324,10 @@ const L_ = {
     print:"Печать / PDF", map:"На карте",
     dayN:n=>"День "+n,
     chips:["история","природа","национальная кухня","шопинг","с семьёй"],
+    allPlan:"Стоимость всего плана",
+    pickHint:"Отметьте места, куда хотите пойти — итоговая стоимость выбранного считается автоматически и сравнивается с бюджетом.",
+    selAll:"Выбрать всё", clearAll:"Снять всё",
+    selN:n=>"Выбрано мест: "+n, sTotal:"Итого", left:"Осталось", over:"Превышение бюджета", none:"Ничего не выбрано",
     eCity:"Введите город.", eBudget:m=>"Бюджет должен быть не менее "+m+".", eDays:"Количество дней — от 1 до 14.",
     eServer:"Не удалось составить маршрут. Подождите немного и повторите.", eBusy:"Слишком много запросов. Подождите немного и повторите.",
     eTime:"Ответ идёт слишком долго. Повторите попытку.", eNet:"Нет связи с сервером. Проверьте интернет и повторите.",
@@ -324,6 +347,10 @@ const L_ = {
     print:"Print / PDF", map:"Map",
     dayN:n=>"Day "+n,
     chips:["history","nature","local food","shopping","with family"],
+    allPlan:"Cost of the full plan",
+    pickHint:"Tick the places you want to visit — the total of your selection is calculated automatically and compared with your budget.",
+    selAll:"Select all", clearAll:"Clear",
+    selN:n=>"Selected: "+n+" places", sTotal:"Total", left:"Left", over:"Over budget", none:"Nothing selected",
     eCity:"Please enter a city.", eBudget:m=>"Budget must be at least "+m+".", eDays:"Days must be between 1 and 14.",
     eServer:"Could not build the plan. Please wait a bit and try again.", eBusy:"Too many requests. Please wait a bit and try again.",
     eTime:"The answer is taking too long. Please try again.", eNet:"Could not reach the server. Check your internet and try again.",
@@ -633,33 +660,43 @@ function cleanTitle(s){
 
 function render(r){
   const { data, budget, city } = r, k = r.cur;
-  const box = $("result"); box.replaceChildren();
   const days = Array.isArray(data.days) ? data.days : [];
-  const total = days.reduce((s, d) => s + (d.items || []).reduce((a, i) => a + (+i.cost || 0), 0), 0);
+  if (!r.sel){
+    r.sel = new Set();
+    if (DEFAULT_ON) days.forEach((d, di) => (d.items || []).forEach((x, ii) => r.sel.add(di + "-" + ii)));
+  }
+  const cost = i => +i.cost || 0;
+  const planTotal = days.reduce((s, d) => s + (d.items || []).reduce((a, i) => a + cost(i), 0), 0);
+  const box = $("result"); box.replaceChildren();
 
   const act = el("div","actions");
+  const bAll = el("button","ghost",t.selAll); bAll.type = "button";
+  const bNone = el("button","ghost",t.clearAll); bNone.type = "button";
   const pb = el("button","ghost",t.print); pb.type = "button"; pb.onclick = () => window.print();
-  act.append(pb); box.append(act);
+  act.append(bAll, bNone, pb); box.append(act);
 
   const m = el("div","meter");
-  const row = el("div","mrow");
-  row.append(el("span","",t.est + ": " + fmt(total, k)), el("span","",t.bud + ": " + fmt(budget, k)));
-  const bar = el("div","bar"), fill = document.createElement("b");
-  if (total > budget) fill.className = "over";
-  bar.append(fill);
-  m.append(row, bar, el("p","sum",data.summary || ""));
+  const mrow = el("div","mrow");
+  mrow.append(el("span","",t.allPlan + ": " + fmt(planTotal, k)), el("span","",t.bud + ": " + fmt(budget, k)));
+  m.append(mrow, el("p","sum",data.summary || ""));
   box.append(m);
-  requestAnimationFrame(() => { fill.style.width = Math.min(100, total / budget * 100) + "%"; });
+  box.append(el("p","pickhint","☑ " + t.pickHint));
 
-  days.forEach(d => {
+  const subEls = [], rows = {};
+  days.forEach((d, di) => {
     const day = el("div","day");
     const dh = el("div","dh");
     dh.append(el("span","dn",t.dayN(d.day)));
     const ttl = cleanTitle(d.title);
     if (ttl) dh.append(el("h2","",ttl));
+    const sub = el("span","dsub"); subEls[di] = sub; dh.append(sub);
     day.append(dh);
-    (d.items || []).forEach(i => {
+    (d.items || []).forEach((i, ii) => {
+      const key = di + "-" + ii;
       const it = el("div","item");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.className = "pick"; cb.checked = r.sel.has(key);
+      cb.setAttribute("aria-label", i.place || "");
       const mid = el("div");
       mid.append(el("h3","",i.place || ""), el("p","",i.description || ""));
       if (i.place){
@@ -668,8 +705,14 @@ function render(r){
         a.target = "_blank"; a.rel = "noopener";
         mid.append(a);
       }
-      const c = +i.cost || 0;
-      it.append(el("div","time",i.time || ""), mid, el("div","cost" + (c ? "" : " free"), c ? fmt(c, k) : t.free));
+      const c = cost(i);
+      it.append(cb, el("div","time",i.time || ""), mid, el("div","cost" + (c ? "" : " free"), c ? fmt(c, k) : t.free));
+      rows[key] = { it, cb };
+      cb.addEventListener("change", () => setSel(key, cb.checked));
+      it.addEventListener("click", ev => {
+        if (ev.target.closest("a") || ev.target === cb) return;
+        setSel(key, !r.sel.has(key));
+      });
       day.append(it);
     });
     box.append(day);
@@ -681,6 +724,42 @@ function render(r){
     data.tips.forEach(x => ul.append(el("li","",x)));
     tb.append(ul); box.append(tb);
   }
+
+  const sb = el("div","sbar");
+  const l1 = el("div","sline"), l2 = el("div","sline");
+  const s1 = el("span","sn"), s2 = el("strong","st");
+  l1.append(s1, s2);
+  const pbar = el("div","bar"), pf = document.createElement("b"); pbar.append(pf);
+  const s3 = el("span"), s4 = el("span","sl");
+  l2.append(s3, s4);
+  sb.append(l1, pbar, l2); box.append(sb);
+
+  function update(){
+    let total = 0, n = 0;
+    days.forEach((d, di) => {
+      let sub = 0;
+      (d.items || []).forEach((i, ii) => {
+        const key = di + "-" + ii, on = r.sel.has(key), row = rows[key];
+        row.it.classList.toggle("off", !on);
+        row.cb.checked = on;
+        if (on){ sub += cost(i); n++; }
+      });
+      total += sub;
+      subEls[di].textContent = fmt(sub, k);
+    });
+    s1.textContent = n ? t.selN(n) : t.none;
+    s2.textContent = t.sTotal + ": " + fmt(total, k);
+    s3.textContent = t.bud + ": " + fmt(budget, k);
+    const diff = budget - total, over = diff < 0;
+    s4.textContent = (over ? t.over : t.left) + ": " + fmt(Math.abs(diff), k);
+    s4.classList.toggle("bad", over);
+    pf.className = over ? "over" : "";
+    pf.style.width = Math.min(100, budget > 0 ? total / budget * 100 : 0) + "%";
+  }
+  function setSel(key, on){ if (on) r.sel.add(key); else r.sel.delete(key); update(); }
+  bAll.onclick = () => { days.forEach((d, di) => (d.items || []).forEach((x, ii) => r.sel.add(di + "-" + ii))); update(); };
+  bNone.onclick = () => { r.sel.clear(); update(); };
+  update();
 }
 
 $("dm").onclick = () => { $("days").value = Math.max(1, (+$("days").value || 2) - 1); };
